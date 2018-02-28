@@ -1,0 +1,128 @@
+RHEL7
+搭建开发环境
+cd /apps
+wget https://www.python.org/ftp/python/3.5.1/Python-3.5.1.tgz
+tar -xf Python-3.5.1.tgz
+cd Python-3.5.1
+./configure
+make
+#os encoding error:
+echo 'LANG="zh_CN.utf-8"' > /etc/locale.conf
+make
+make test
+sudo make install
+pip3 install aiohttp
+pip3 install jinja2
+pip3 install aiomysql
+
+创建项目结构
+cd /apps
+mkdir awesome-python3-webapp
+cd awesome-python3-webapp/
+mkdir backup conf dist www/{static,templates} ios
+
+搭建git
+yum -y install git
+git config --global user.name 'xiaoshouhua'
+git config --global user.email '786513084@qq.com'
+mkdir /apps/learngit #创建版本库目录
+git init #初始化版本库，会生成隐藏目录.git
+git add filename #添加文件到暂存区
+git commit -m '提交描述' #从暂存区提交文件到当前分支
+git status #查看仓库状态
+git diff filename #查看具体的修改内容
+git log  #查看从最近到最远的详细提交日志，加--pretty=oneline可简略
+#HEAD指向的版本就是当前版本，因此，Git允许在版本的历史之间穿梭，使用命令
+git reset --hard commit_id
+#重返未来版本，用git reflog查看命令历史，以确定要回到未来的哪个版本
+#git管理的是修改，不是文件（暂存区）
+git diff HEAD -- readme.txt #查看工作区和版本库里面最新版本的区别
+#当改乱了工作区某个文件的内容，想直接丢弃工作区的修改时，用命令
+git checkout -- filename
+#当不但改乱了工作区某个文件的内容，还添加到了暂存区时，想丢弃修改，分两步：
+git reset HEAD filename
+git checkout -- filename
+#当已经提交了不合适的修改到版本库时，想要撤销本次提交，直接回退，前提是没有推送到远程库
+git reset --hard HEAD^
+#删除了工作区的无用文件，如果该文件已经被提交到版本库，可以使用命令删除版本库中的文件
+git rm filename
+#如果觉得删除工作区的文件后，后悔了，直接使用命令：git checkout -- filename
+
+#关联远程库：
+ssh-keygen -t rsa -C '786513084@qq.com'
+将公钥上传到github
+git remote add origin git@github.com:xiaoshouhua/learngit.git
+#关联后使用命令第一次推送master分支的所有内容
+git push -u origin master
+#push时遇到问题：是因为关联远程库时搞反了，使用了https这种模式：git remote add origin https://github.com/xshcyy/learngit.git
+fatal: unable to access 'https://github.com/xshcyy/learngit.git/': Peer reports incompatible or unsupported protocol version.
+解决办法：https://link.zhihu.com/?target=https%3A//help.github.com/articles/changing-a-remote-s-url/
+#后面使用命令进行push
+git push origin master
+
+git分支管理
+git branch #查看分支
+git branch <name> #创建分支
+git checkout <name> #切换分支
+git checkout -b <name> #创建并切换分支
+git merge <name> #合并某分支到当前分支
+git branch -d <name> #删除分支
+
+#git解决冲突：当两个分支同时修改一个文件统一处后，合并分支会发生冲突，所以需要先解决冲突，完了在提交，合并完成。
+git log  --graph --pretty=oneline --abbrev-commit #查看分支合并情况
+
+#一般情况下，合并分支git会使用Fast forward模式，该模式，删除分支后会丢掉分支信息；
+#使用--no-ff模式可以强制禁用Fast forward模式，Git就会在merge时生成一个新的commit，这样，从分支历史上就可以看出分支信息
+git checkout -b dev
+vim readme.txt
+git add readme.txt
+git commit -m 'add merge'
+git checkout master 
+git merge --no-ff -m 'merge with no-ff' dev 
+git log --graph --pretty=oneline --abbrev-commit 
+分支策略：
+1.保证master分支是稳定的，仅用来发布新版本，平时不在上面干活
+2.干活都在dev分支上，dev分支是不稳定的，到某个时候，比如1.0版本发布时，再把dev分支合并到master上，在master分支发布1.0版本
+3.团队成员都在dev分支上干活，每个人都有自己的分支，时不时地往dev分支上合并就可以。
+
+Bug分支：每个bug都可以通过一个新的临时分支来修复，修复后，合并分支，然后将临时分支删除。
+修复bug时，当前的工作现场可临时储藏起来，使用：
+git stash
+修复完bug，需要回到现场：
+git stash pop
+
+开发一个新feature，最好新建一个分支；
+如果丢弃一个没有被合并过的分支，可以通过命令：
+git branch -D <name>
+
+多人协作
+git remote -v #查看远程分支详细信息
+
+push分支
+master分支是主分支，因此要时刻与远程同步；
+dev分支是开发分支，团队所有成员都需要在上面工作，所以也需要与远程同步；
+bug分支只用于在本地修复bug，就没必要推到远程了，除非老板要看看你每周到底修复了几个bug；
+feature分支是否推到远程，取决于你是否和你的小伙伴合作在上面开发。
+git push origin master 
+git push origin dev
+
+抓取分支：
+首先，可以试图用git push origin branch-name推送自己的修改；
+如果推送失败，则因为远程分支比你的本地更新，需要先用git pull试图合并；
+如果合并有冲突，则解决冲突，并在本地提交；
+没有冲突或者解决掉冲突后，再用git push origin branch-name推送就能成功！
+如果git pull提示“no tracking information”，则说明本地分支和远程分支的链接关系没有创建，用命令git branch --set-upstream branch-name origin/branch-name。
+这就是多人协作的工作模式，一旦熟悉了，就非常简单。
+
+标签：标签是指向commit的死指针，分支是指向commit的活指针
+命令git tag <name>用于新建一个标签，默认为HEAD，也可以指定一个commit id；
+git tag -a <tagname> -m "blablabla..."可以指定标签信息；
+git tag -s <tagname> -m "blablabla..."可以用PGP签名标签；
+命令git tag可以查看所有标签。
+
+命令git push origin <tagname>可以推送一个本地标签；
+命令git push origin --tags可以推送全部未推送过的本地标签；
+命令git tag -d <tagname>可以删除一个本地标签；
+命令git push origin :refs/tags/<tagname>可以删除一个远程标签。
+
+
